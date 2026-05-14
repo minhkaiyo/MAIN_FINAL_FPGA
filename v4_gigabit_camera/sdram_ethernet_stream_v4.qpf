@@ -1,0 +1,4 @@
+QUARTUS_VERSION = "13.0"
+DATE = "2026/05/09 18:00:00"
+
+PROJECT_REVISION = "sdram_ethernet_stream_v4"

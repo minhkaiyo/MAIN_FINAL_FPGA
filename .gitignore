@@ -1,0 +1,38 @@
+# Quartus
+db/
+incremental_db/
+output_files/
+simulation/
+greybox_tmp/
+*.qws
+*.jdi
+*.pin
+*.pof
+*.smsg
+*.summary
+*.qdf
+*.done
+*.qarlog
+*.rpt
+*.chg
+*.log
+*.htm
+*.eqn
+*.jhd
+
+# Modelsim
+work/
+transcript
+*.wlf
+modelsim.ini
+
+# Python
+__pycache__/
+*.pyc
+
+# Vimba / Camera logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
