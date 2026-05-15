@@ -455,9 +455,9 @@ always @(posedge clk or negedge pll_sdram_locked) begin
 
         // --- FETCH DỮ LIỆU VGA ---
         ST_DISP_ACT:       begin 
-            $display("SDRAM: [RD] Frame:%d Row:%d Bank:%d", rd_frame, fetch_line, (rd_frame==1 ? 2'd1 : 2'd2)); 
+            $display("SDRAM: [RD] Frame:%d Row:%d Bank:%d", rd_frame, fetch_line, rd_frame); 
             send_cmd(CMD_ACT); 
-            DRAM_BA_r <= (rd_frame==1 ? 2'd1 : 2'd2); 
+            DRAM_BA_r <= rd_frame; // SỬA LỖI: Dùng rd_frame trực tiếp làm bank (0,1,2) thay vì skip bank 0
             DRAM_ADDR_r <= {4'd0,disp_addr[17:9]}; 
             disp_col <= disp_addr[8:0]; 
             wait_cnt <= 0; 
