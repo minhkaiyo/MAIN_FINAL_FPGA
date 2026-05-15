@@ -294,10 +294,8 @@ always @(posedge clk_125) begin
     if (mux_frame_start) begin
         ready_frame_eth <= wr_frame;
         frame_ready     <= 1'b1; // Kể từ đây VGA mới được phép fetch
-        // Thuật toán Triple Buffer: Chọn buffer không phải là đang đọc và không phải là vừa ghi xong
-        if      (wr_frame != 2'd0 && rd_frame_sync != 2'd0) wr_frame <= 2'd0;
-        else if (wr_frame != 2'd1 && rd_frame_sync != 2'd1) wr_frame <= 2'd1;
-        else                                                 wr_frame <= 2'd2;
+        // Thuật toán Double Buffer (Ping-Pong): Ghi vào bank ngược với bank VGA đang đọc
+        wr_frame <= (rd_frame_sync == 2'd0) ? 2'd1 : 2'd0;
     end
 end
 
@@ -558,11 +556,12 @@ end
 `ifdef SIMULATION
     // 10a. ASSERTIONS (Bắt lỗi ngay lập tức)
     always @(posedge clk) begin
-        if (frame_ready_s && (wr_frame == rd_frame)) begin
-            $display("!!! ASSERTION FAILED: Buffer Collision! WR=%d, RD=%d at time %t", wr_frame, rd_frame, $time);
-            $stop; // Dừng sim để debug ngay
+        // Double Buffer: kiểm tra wr_frame và rd_frame không bao giờ vượt quá 1
+        if (wr_frame > 2'd1 || rd_frame > 2'd1) begin
+            $display("!!! ASSERTION FAILED: Buffer index out of range! WR=%d, RD=%d at time %t", wr_frame, rd_frame, $time);
+            $stop;
         end
-        if (fifo_full && rx_axis_tvalid) begin
+        if (fifo_full && mux_valid) begin
             $display("!!! ASSERTION FAILED: FIFO Overflow! Data lost at time %t", $time);
         end
     end
