@@ -207,13 +207,78 @@ always @(posedge clk_125) begin
 end
 
 // ==========================================================================
+// 4b. TEST PATTERN GENERATOR (SW[17] = ON -> gradient, OFF -> Ethernet)
+// ==========================================================================
+(* altera_attribute = "-name SYNCHRONIZER_IDENTIFICATION FORCED_IF_ASYNCHRONOUS" *)
+reg sw17_s1 = 0, sw17_s2 = 0;
+always @(posedge clk_125) begin sw17_s1 <= SW[17]; sw17_s2 <= sw17_s1; end
+wire test_mode = sw17_s2;
+
+reg [1:0]  pg_state = 0;
+reg [17:0] pg_addr = 0;
+reg [9:0]  pg_row = 0;
+reg [7:0]  pg_col = 0;      // 0-159 words per row
+reg        pg_valid = 0;
+reg        pg_frame_start = 0;
+reg [20:0] pg_wait = 0;
+
+localparam PG_IDLE = 0, PG_FSTART = 1, PG_WRITE = 2, PG_WAIT = 3;
+
+always @(posedge clk_125) begin
+    if (mac_rst || !test_mode) begin
+        pg_state <= PG_IDLE; pg_valid <= 0; pg_frame_start <= 0;
+    end else begin
+        pg_valid <= 0; pg_frame_start <= 0;
+        case (pg_state)
+            PG_IDLE: begin
+                pg_row <= 0; pg_col <= 0; pg_addr <= 18'h3FFFF; // Tràn về 0 khi +1 lần đầu
+                pg_state <= PG_FSTART;
+            end
+            PG_FSTART: begin
+                pg_frame_start <= 1;
+                pg_state <= PG_WRITE;
+            end
+            PG_WRITE: begin
+                if (!fifo_full) begin
+                    pg_valid <= 1;
+                    // pg_addr giữ nguyên cho FIFO capture, tăng cho lần sau
+                    if (pg_col == 159) begin
+                        pg_col <= 0;
+                        if (pg_row == 479) begin
+                            pg_wait <= 0; pg_state <= PG_WAIT;
+                        end else
+                            pg_row <= pg_row + 1;
+                    end else
+                        pg_col <= pg_col + 1;
+                    pg_addr <= pg_addr + 1;
+                end
+            end
+            PG_WAIT: begin
+                // Chờ ~16ms (2M cycles @125MHz) cho VGA quét xong 1 frame
+                if (pg_wait >= 21'd2000000) pg_state <= PG_IDLE;
+                else pg_wait <= pg_wait + 1;
+            end
+        endcase
+    end
+end
+
+// Pattern: Gradient dọc (pixel = y[7:0]), 4 pixel/word
+wire [31:0] pg_word_data = {pg_row[7:0], pg_row[7:0], pg_row[7:0], pg_row[7:0]};
+
+// === MUX: Test Pattern vs Ethernet ===
+wire        mux_valid       = test_mode ? pg_valid          : word_valid;
+wire [17:0] mux_addr        = test_mode ? pg_addr           : word_addr;
+wire [31:0] mux_data        = test_mode ? pg_word_data      : word_data;
+wire        mux_frame_start = test_mode ? pg_frame_start    : frame_start_pulse;
+
+// ==========================================================================
 // 5. TRIPLE BUFFER MANAGEMENT
 // ==========================================================================
 reg [1:0] wr_frame = 0, ready_frame_eth = 0;
 reg [1:0] rd_frame = 0;
 
-wire fifo_wr = word_valid & !fifo_full & (word_addr < 76800);
-wire [51:0] fifo_din  = {wr_frame, word_addr, word_data};
+wire fifo_wr = mux_valid & !fifo_full & (mux_addr < 76800);
+wire [51:0] fifo_din  = {wr_frame, mux_addr, mux_data};
 
 (* altera_attribute = "-name SYNCHRONIZER_IDENTIFICATION FORCED_IF_ASYNCHRONOUS" *)
 reg [1:0] rd_frame_eth_s1 = 0, rd_frame_eth_s2 = 0;
@@ -226,7 +291,7 @@ wire [1:0] rd_frame_sync = rd_frame_eth_s2;
 reg frame_ready = 0; // Flag: đã có ít nhất 1 frame hoàn chỉnh trong SDRAM
 
 always @(posedge clk_125) begin
-    if (frame_start_pulse) begin
+    if (mux_frame_start) begin
         ready_frame_eth <= wr_frame;
         frame_ready     <= 1'b1; // Kể từ đây VGA mới được phép fetch
         // Thuật toán Triple Buffer: Chọn buffer không phải là đang đọc và không phải là vừa ghi xong
@@ -520,6 +585,8 @@ end
 
 assign LEDG[0] = pll_125_locked;
 assign LEDG[1] = pll_sdram_locked;
-// ... (phần gán LED giữ nguyên)
+assign LEDG[2] = test_mode;         // Sáng = đang ở chế độ Test Pattern
+assign LEDG[3] = frame_ready;       // Sáng = đã có frame trong SDRAM
+assign LEDG[8] = test_mode;         // LED xanh lớn nhất = Test Mode indicator
 
 endmodule
