@@ -225,7 +225,7 @@ reg [20:0] pg_wait = 0;
 localparam PG_IDLE = 0, PG_FSTART = 1, PG_WRITE = 2, PG_WAIT = 3;
 
 always @(posedge clk_125) begin
-    if (mac_rst || !test_mode) begin
+    if (rst || !pll_125_locked || !test_mode) begin
         pg_state <= PG_IDLE; pg_valid <= 0; pg_frame_start <= 0;
     end else begin
         pg_valid <= 0; pg_frame_start <= 0;
