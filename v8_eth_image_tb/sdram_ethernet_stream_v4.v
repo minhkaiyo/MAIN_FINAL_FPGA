@@ -454,8 +454,8 @@ localparam INIT_WAIT=100;
 `else
 localparam INIT_WAIT=20000;
 `endif
-localparam tRP=2,tRFC=7,tMRD=2,tRCD=2,CAS_LAT=2;
-localparam MODE_REG=13'b000_0_00_010_0_000;
+localparam tRP=3, tRFC=7, tMRD=2, tRCD=3, CAS_LAT=3;
+localparam MODE_REG=13'b000_0_00_011_0_000; // CAS Latency 3
 localparam [4:0] ST_RESET=0,ST_INIT_WAIT=1,ST_INIT_PRE=2,ST_INIT_PRE_W=3,
     ST_INIT_REF=4,ST_INIT_REF_W=5,ST_INIT_LM=6,ST_INIT_LM_W=7,ST_IDLE=8,
     ST_REFRESH=9,ST_REFRESH_W=10,ST_DISP_ACT=11,ST_DISP_ACT_W=12,
@@ -472,12 +472,25 @@ reg [8:0]  disp_col;
 reg [1:0] burst_bank; reg [8:0] burst_row; reg [6:0] burst_count;
 localparam BURST_THRESHOLD=8, BURST_MAX=64;
 
-reg fetch_req=0;
+reg fetch_req = 0;
+reg fetch_done = 0;
+reg [10:0] fetch_line_latched = 0;
 always @(posedge clk or negedge pll_sdram_locked) begin
-    if (!pll_sdram_locked) fetch_req<=0;
-    else begin
-        if (start_fetch && fetch_line<480 && frame_ready_s) fetch_req<=1'b1;
-        if (state==ST_DISP_ACT && disp_words_read==0) fetch_req<=1'b0;
+    if (!pll_sdram_locked) begin
+        fetch_req <= 0;
+        fetch_done <= 0;
+        fetch_line_latched <= 0;
+    end else begin
+        if (start_fetch && fetch_line < 480) begin
+            if (!fetch_done) begin
+                fetch_req <= 1;
+                fetch_line_latched <= fetch_line;
+                fetch_done <= 1;
+            end
+        end else if (h_cnt > 20) begin
+            fetch_done <= 0;
+        end
+        if (state == ST_DISP_ACT && disp_words_read == 0) fetch_req <= 0;
     end
 end
 
@@ -503,8 +516,7 @@ always @(posedge clk or negedge pll_sdram_locked) begin
             if (refresh_cnt>=REFRESH_IV) begin refresh_cnt<=0; state<=ST_REFRESH; end
             // ƯU TIÊN SỐ 1: VGA FETCH (Line Buffer)
             else if (fetch_req) begin 
-                // fetch_line * 160 = fetch_line * 128 + fetch_line * 32
-                disp_addr <= ({7'd0, fetch_line} << 7) + ({9'd0, fetch_line} << 5); 
+                disp_addr <= fetch_line_latched * 160;
                 disp_words_read<=0; buf_wr_ptr<=0; state<=ST_DISP_ACT; 
             end
             // ƯU TIÊN SỐ 2: ETHERNET WRITE (Chỉ khi VGA đã xong dòng)
