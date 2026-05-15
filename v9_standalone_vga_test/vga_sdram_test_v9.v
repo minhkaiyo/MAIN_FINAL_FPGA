@@ -214,8 +214,8 @@ assign DRAM_BA=DRAM_BA_r; assign DRAM_DQM=DRAM_DQM_r;
 task send_cmd; input [3:0] cmd; begin {DRAM_CS_N_r,DRAM_RAS_N_r,DRAM_CAS_N_r,DRAM_WE_N_r}<=cmd; end endtask
 
 localparam INIT_WAIT=20000;
-localparam tRP=2,tRFC=7,tMRD=2,tRCD=2,CAS_LAT=2;
-localparam MODE_REG=13'b000_0_00_010_0_000;
+localparam tRP=2,tRFC=7,tMRD=2,tRCD=2,CAS_LAT=3;
+localparam MODE_REG=13'b000_0_00_011_0_000; // Bit [6:4] = 011 -> CAS Latency 3
 localparam [4:0] ST_RESET=0,ST_INIT_WAIT=1,ST_INIT_PRE=2,ST_INIT_PRE_W=3,
     ST_INIT_REF=4,ST_INIT_REF_W=5,ST_INIT_LM=6,ST_INIT_LM_W=7,ST_IDLE=8,
     ST_REFRESH=9,ST_REFRESH_W=10,ST_DISP_ACT=11,ST_DISP_ACT_W=12,
@@ -272,7 +272,7 @@ always @(posedge clk or negedge pll_sdram_locked) begin
         ST_DISP_ACT:       begin send_cmd(CMD_ACT); DRAM_BA_r<=rd_frame; DRAM_ADDR_r<={4'd0,disp_addr[17:9]}; disp_col<=disp_addr[8:0]; wait_cnt<=0; state<=ST_DISP_ACT_W; end
         ST_DISP_ACT_W:     if(wait_cnt==tRCD-1) begin wait_cnt<=0; state<=ST_DISP_RD; end else wait_cnt<=wait_cnt+1;
         ST_DISP_RD:        begin send_cmd(CMD_RD); DRAM_ADDR_r<={4'd0,disp_col}; DRAM_ADDR_r[10]<=0; disp_col<=disp_col+1; disp_addr<=disp_addr+1; disp_words_read<=disp_words_read+1; wait_cnt<=0; state<=ST_DISP_CAS_W; end
-        ST_DISP_CAS_W:     if(wait_cnt==CAS_LAT+1) state<=ST_DISP_CAP; else wait_cnt<=wait_cnt+1;
+        ST_DISP_CAS_W:     if(wait_cnt==CAS_LAT) state<=ST_DISP_CAP; else wait_cnt<=wait_cnt+1;
         ST_DISP_CAP:       begin buf_wr_data<=dq_in; buf_wr_en<=1; buf_wr_ptr<=buf_wr_ptr+1; if(disp_words_read==10'd160||(disp_words_read!=0&&disp_col==9'd0)) state<=ST_DISP_PRE; else state<=ST_DISP_RD; end
         ST_DISP_PRE:       begin send_cmd(CMD_PRE); DRAM_ADDR_r[10]<=1; wait_cnt<=0; state<=ST_DISP_PRE_W; end
         ST_DISP_PRE_W:     if(wait_cnt==tRP) begin if(disp_words_read>=160) state<=ST_IDLE; else state<=ST_DISP_ACT; end else wait_cnt<=wait_cnt+1;

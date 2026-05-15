@@ -45,7 +45,7 @@ defparam
     altpll_component.clk1_divide_by          = 1,
     altpll_component.clk1_duty_cycle         = 50,
     altpll_component.clk1_multiply_by        = 2,
-    altpll_component.clk1_phase_shift        = "-3000",
+    altpll_component.clk1_phase_shift        = "-3500",
     // c2: 25MHz (50 / 2) cho VGA pixel clock
     altpll_component.clk2_divide_by          = 2,
     altpll_component.clk2_duty_cycle         = 50,
