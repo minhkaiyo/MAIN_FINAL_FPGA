@@ -1,0 +1,3 @@
+QUARTUS_VERSION = "13.0"
+DATE = "14:46:00 May 15, 2026"
+PROJECT_REVISION = "vga_sdram_test_v9"
