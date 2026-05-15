@@ -28,7 +28,7 @@ module tb_top();
     // 2. FILE LOGGING (Professional Strategy)
     // ==========================================================================
     integer fd_eth, fd_vga, fd_err;
-    reg [7:0] image_mem [0:640*480-1];
+    reg [7:0] image_mem [0:3*640*480-1]; // 3 Frames of data
 
     initial begin
         fd_eth = $fopen("output_log/eth_transactions.log", "w");
@@ -68,16 +68,22 @@ module tb_top();
         $display("Starting Professional Simulation...");
         KEY[0] = 0; #200; KEY[0] = 1; #2000;
 
-        for (f = 0; f < 2; f = f + 1) begin
+        for (f = 0; f < 3; f = f + 1) begin
             $display("--- Frame %0d Transmission Start ---", f);
             for (y = 0; y < 480; y = y + 1) begin
                 send_udp_packet(y, f[7:0]);
                 wait (dut.fifo_rdusedw < 4096);
                 #100;
             end
+            
+            // ĐIỂM CỐT LÕI MỚI: 
+            // Camera gửi 1 frame trong 3ms. Nhưng màn hình VGA mất 16ms để quét xong.
+            // Nếu gửi 3 frame liên tiếp ngay lập tức, Triple Buffer sẽ vứt bỏ 2 frame đầu để chống xé hình!
+            // Do đó ta cần nghỉ 18ms để chờ màn hình chiếu xong mới gửi frame tiếp theo!
+            #18000000; 
         end
         
-        #40000000; // 40ms wait to ensure VGA can read out a full frame after writing
+        #60000000; // 60ms wait to ensure VGA can read out all 3 frames
         $fclose(fd_eth); $fclose(fd_vga); $fclose(fd_err);
         $display("Simulation Finished. Check mismatches.log for errors.");
         $finish;
@@ -98,8 +104,8 @@ module tb_top();
     integer pixel_count = 0;
     always @(posedge clk_gen_vga) begin
         if (dut.vblank && dut.frame_ready && dut.rd_frame != 0) begin
-            // Ghi toàn bộ pixel của 1 khung hình ra file để Python đọc lại (640x480 = 307200)
-            if (pixel_count < 307200) begin
+            // Ghi toàn bộ pixel của 3 khung hình ra file để Python đọc lại (3 * 640x480 = 921600)
+            if (pixel_count < 921600) begin
                 $fdisplay(fd_vga, "%02h %02h %02h", VGA_R, VGA_G, VGA_B);
                 pixel_count = pixel_count + 1;
             end
@@ -120,9 +126,9 @@ module tb_top();
             for (i = 0; i < 8; i = i + 1)  drive_byte(8'hCC);
             drive_byte(row[15:8]);
             drive_byte(row[7:0]);
-            // Gửi 640 byte (Truyền từng pixel từ file ảnh thật vào Ethernet)
+            // Gửi 640 byte (Truyền từng pixel từ frame tương ứng vào Ethernet)
             for (i = 0; i < 640; i = i + 1) begin
-                drive_byte(image_mem[row * 640 + i]); 
+                drive_byte(image_mem[frame_num * 307200 + row * 640 + i]); 
             end
             force dut.rx_axis_tdata = 8'h00; force dut.rx_axis_tvalid = 1; force dut.rx_axis_tlast = 1;
             @(posedge dut.clk_125);

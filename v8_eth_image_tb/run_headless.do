@@ -14,5 +14,5 @@ vlog -vlog01compat -work work +define+SIMULATION +incdir+./lib/Sdram_Control {./
 
 # Load và Chạy — 10ms đủ cho 3 frame gửi + VGA quét
 vsim -c -t 1ps -novopt -L altera_mf_ver -L altera_ver -L lpm_ver -L sgate_ver work.tb_top
-run 60ms
+run 150ms
 quit -f
