@@ -526,11 +526,7 @@ set_instance_assignment -name FAST_INPUT_REGISTER ON -to ENET_RX_DATA[1]
 set_instance_assignment -name FAST_INPUT_REGISTER ON -to ENET_RX_DATA[2]
 set_instance_assignment -name FAST_INPUT_REGISTER ON -to ENET_RX_DATA[3]
 set_instance_assignment -name FAST_INPUT_REGISTER ON -to ENET_RX_DV
-set_global_assignment -name VERILOG_FILE "C:/Users/Minh/Downloads/sdram_ctrl.v"
-set_global_assignment -name VERILOG_FILE "C:/Users/Minh/Downloads/top_vga_sdram.v"
-set_global_assignment -name VERILOG_FILE "C:/Users/Minh/Downloads/triple_buf_logic.v"
-set_global_assignment -name VERILOG_FILE "C:/Users/Minh/Downloads/vga_timing.v"
-set_global_assignment -name VERILOG_FILE save/test/sdram_vga_test_v4.v
+set_global_assignment -name VERILOG_FILE sdram_pll.v
 set_global_assignment -name VERILOG_FILE sdram_ethernet_stream_v4.v
 set_global_assignment -name VERILOG_FILE phy_init_88e1111.v
 set_global_assignment -name VERILOG_FILE gvcp_tx_axi.v
