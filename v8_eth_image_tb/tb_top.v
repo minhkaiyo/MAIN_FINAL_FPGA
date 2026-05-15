@@ -103,7 +103,7 @@ module tb_top();
     // VGA LOGGING & SELF-CHECKING
     integer pixel_count = 0;
     always @(posedge clk_gen_vga) begin
-        if (dut.vblank && dut.frame_ready && dut.rd_frame != 0) begin
+        if (dut.vblank && dut.frame_ready) begin // SỬA: Bỏ điều kiện rd_frame!=0 để kiểm tra MỌI frame (kể cả rd_frame=0)
             // Ghi toàn bộ pixel của 3 khung hình ra file để Python đọc lại (3 * 640x480 = 921600)
             if (pixel_count < 921600) begin
                 $fdisplay(fd_vga, "%02h %02h %02h", VGA_R, VGA_G, VGA_B);
